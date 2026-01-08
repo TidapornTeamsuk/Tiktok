@@ -1,0 +1,72 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// =============================================
+// 📦 TikTok Video Creator Database Schema
+// =============================================
+
+// สินค้าที่ดึงข้อมูลมาจาก TikTok Shop
+model Product {
+  id          String   @id @default(uuid())
+  url         String   @unique // ลิงก์สินค้าต้นทาง
+  name        String // ชื่อสินค้า
+  description String?  @db.Text // คำอธิบายสินค้า
+  price       String? // ราคาสินค้า
+  features    String[] // จุดเด่นของสินค้า
+  sourceImages String[] // รูปภาพจากหน้าร้าน
+  
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  
+  videos      Video[] // วิดีโอที่สร้างจากสินค้านี้
+}
+
+// วิดีโอที่สร้างขึ้น
+model Video {
+  id          String   @id @default(uuid())
+  
+  // ข้อมูลสินค้า
+  productId   String
+  product     Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
+  
+  // Creative Assets
+  script      String   @db.Text // บทพูด (<8 วินาที)
+  reviewImages String[] // รูปภาพรีวิวที่ AI สร้าง
+  
+  // Video Output
+  videoUrl    String? // ลิงก์ไฟล์วิดีโอ
+  thumbnailUrl String? // ภาพหน้าปก
+  duration    Int      @default(8) // ความยาววิดีโอ (วินาที)
+  
+  // SEO & Metadata
+  caption     String?  @db.Text // ข้อความบรรยายวิดีโอ
+  hashtags    String[] // Hashtags
+  
+  // Settings
+  tone        String   @default("professional") // อารมณ์: funny, informative, honest
+  language    String   @default("th") // ภาษา: th, en
+  
+  // Status
+  status      VideoStatus @default(PENDING)
+  errorMessage String? // ข้อความ error (ถ้ามี)
+  
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
+// สถานะของวิดีโอ
+enum VideoStatus {
+  PENDING        // รอดำเนินการ
+  SCRAPING       // กำลังดึงข้อมูลสินค้า
+  GENERATING_ASSETS // กำลังสร้างรูปและบทพูด
+  RENDERING      // กำลังเรนเดอร์วิดีโอ
+  GENERATING_SEO // กำลังสร้าง Caption และ Hashtags
+  COMPLETED      // เสร็จสิ้น
+  FAILED         // ล้มเหลว
+}
